@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, render_template
-from datetime import datetime
+from datetime import timezone, datetime
 from .extension import get_events_collection
 
 main_bp = Blueprint("main",__name__)
@@ -11,26 +11,30 @@ def index():
 
 @main_bp.route("/webhook/receiver",methods=["POST"])
 def github_webhook_handler():
-
+    
     event_collection = get_events_collection()
 
-    if not request.heders.get("application/json"):
-        return jsonify({"status":"error","message":"missing json"}),400
+    if not request.headers.get("X-GitHub-Event"):
+        return jsonify({"status":"error","message":"missing X-GitHub-Event"}),400
     
-    event_type = request.headers.get('aplication/json')
+    event_type = request.headers.get('X-GitHub-Event')
     payload = request.json
+    print(payload)
 
     event_data = {}
 
     try:
        if event_type == 'push':
           
-          event_data['action'] == 'PUSH'
-          event_data['request_id'] == payload['head_commit']['id']
-          event_data['author'] == payload['pusher']['name']
-          event_data['to_branch'] == payload['ref'].split('/')[-1]
+          dt_object_with_tz = datetime.strptime(payload['head_commit']['timestamp'], "%Y-%m-%dT%H:%M:%S%z")
+          
+          event_data['action'] = 'PUSH'
+          event_data['request_id'] = payload['head_commit']['id']
+          event_data['author'] = payload['pusher']['name']
+          event_data['to_branch'] = payload['ref'].split('/')[-1]
           event_data['from_branch'] = None 
-          event_data['timestamp'] = datetime.strptime(payload['head_commit']['timestamp'], "%Y-%m-%dT%H:%M:%SZ").isoformat() + "Z"
+          
+          event_data['timestamp'] = dt_object_with_tz.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
 
        elif event_type == 'pull_request':
             
@@ -42,10 +46,30 @@ def github_webhook_handler():
 
             if payload['action'] == 'opened' or payload['action'] == 'reopened':
                 event_data['action'] = "PULL_REQUEST"
-                event_data['timestamp'] = datetime.strptime(pr['created_at'], "%Y-%m-%dT%H:%M:%SZ").isoformat() + "Z"
+                timestamp_str = pr['created_at']
+
+                if timestamp_str.endswith('Z'):
+                    dt_object = datetime.strptime(timestamp_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+                else:
+                    dt_object = datetime.strptime(timestamp_str, "%Y-%m-%dT%H:%M:%S%z")
+
+                event_data['timestamp'] = dt_object.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
+
+                
+
             elif payload['action'] == 'closed' and pr['merged']:
                 event_data['action'] = "MERGE" 
-                event_data['timestamp'] = datetime.strptime(pr['merged_at'], "%Y-%m-%dT%H:%M:%SZ").isoformat() + "Z"
+                if pr['merged_at']:
+                    timestamp_str = pr['merged_at'] # Get the timestamp string for PR merge
+                    
+                    # Parse timestamp specifically for pull_request 'merged_at'
+                    if timestamp_str.endswith('Z'):
+                        dt_object = datetime.strptime(timestamp_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+                    else:
+                        dt_object = datetime.strptime(timestamp_str, "%Y-%m-%dT%H:%M:%S%z")
+
+                    event_data['timestamp'] = dt_object.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
+
             else:
                 
                 return jsonify({"status": "ignored", "message": f"Unhandled pull_request action: {payload['action']}"}), 200
@@ -63,7 +87,7 @@ def github_webhook_handler():
     
 
 
-@main_bp.route("/api/event",methods=["GET"])
+@main_bp.route("/api/events",methods=["GET"])
 def get_events():
      """API endpoint for the UI to fetch latest events."""
      events_collection = get_events_collection()

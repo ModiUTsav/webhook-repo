@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Webhook Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 30px; }
+        .event-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+        }
+        .event-list { list-style: none; padding: 0; }
+        .event-item {
+            padding: 12px 0;
+            border-bottom: 1px dashed #eee;
+            font-size: 1.05em;
+            color: #555;
+            line-height: 1.5;
+        }
+        .event-item:last-child { border-bottom: none; }
+        .action { font-weight: bold; margin-right: 5px; }
+        .push { color: #28a745; } /* Green */
+        .pull_request { color: #007bff; } /* Blue */
+        .merge { color: #6f42c1; } /* Purple */
+        .timestamp { font-size: 0.85em; color: #777; margin-left: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Recent GitHub Activity Feed</h1>
+    <div class="event-container">
+        <ul class="event-list" id="eventList">
+            <li>Loading recent activity...</li>
+        </ul>
+    </div>
+
+    <script>
+        const eventList = document.getElementById('eventList');
+        const displayedEventIds = new Set(); // To keep track of displayed events
+
+        async function fetchAndDisplayEvents() {
+            try {
+                const response = await fetch('/api/events');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const events = await response.json();
+                
+                // Clear initial loading message if present
+                if (eventList.children.length === 1 && eventList.children[0].textContent === 'Loading recent activity...') {
+                    eventList.innerHTML = '';
+                }
+
+                let newEventsAdded = false;
+                // Add new events to the top of the list
+                events.forEach(event => {
+                    // Check if this event (by request_id) has already been displayed
+                    if (!displayedEventIds.has(event.request_id)) {
+                        const listItem = document.createElement('li');
+                        listItem.classList.add('event-item');
+
+                        let formattedString = '';
+                        const dateTime = new Date(event.timestamp);
+                        // Format date and time for better readability
+                        const formattedTimestamp = dateTime.toLocaleString('en-US', {
+                            year: 'numeric', month: 'short', day: 'numeric',
+                            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
+                            timeZoneName: 'short' // Show UTC or local timezone name
+                        });
+
+                        // Apply specific format based on action
+                        if (event.action === 'PUSH') {
+                            formattedString = `<span class="action push">PUSH:</span> ${event.author} pushed to <strong>${event.to_branch}</strong> <span class="timestamp">on ${formattedTimestamp}</span>`;
+                        } else if (event.action === 'PULL_REQUEST') {
+                            formattedString = `<span class="action pull_request">PULL REQUEST:</span> ${event.author} submitted a pull request from <strong>${event.from_branch}</strong> to <strong>${event.to_branch}</strong> <span class="timestamp">on ${formattedTimestamp}</span>`;
+                        } else if (event.action === 'MERGE') {
+                            formattedString = `<span class="action merge">MERGE:</span> ${event.author} merged branch <strong>${event.from_branch}</strong> to <strong>${event.to_branch}</strong> <span class="timestamp">on ${formattedTimestamp}</span>`;
+                        }
+                        
+                        listItem.innerHTML = formattedString;
+                        eventList.prepend(listItem); // Add to the beginning of the list
+                        displayedEventIds.add(event.request_id); // Mark as displayed
+                        newEventsAdded = true;
+                    }
+                });
+
+                // If no events are loaded and no new ones were added, display a message
+                if (eventList.childElementCount === 0 && !newEventsAdded) {
+                    eventList.innerHTML = '<li>No recent activity to display.</li>';
+                }
+
+            } catch (error) {
+                console.error('Error fetching events:', error);
+                eventList.innerHTML = '<li>Failed to load recent activity. Please try again.</li>';
+            }
+        }
+
+        // Fetch events immediately on page load
+        fetchAndDisplayEvents();
+
+        // Set interval to fetch events every 15 seconds
+        setInterval(fetchAndDisplayEvents, 15000);
+    </script>
+</body>
+</html>

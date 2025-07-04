@@ -1,3 +1,5 @@
+<img width="1555" height="989" alt="Image" src="https://github.com/user-attachments/assets/ec250f1c-93f7-4785-823e-0c64b6fbe91d" />
+
 ## GitHub Webhook Listener
 This repository provides a Flask application that acts as a listener for GitHub webhook events. It is designed to receive, process, and store push and pull_request events from a designated GitHub repository into a MongoDB database, and display them via a simple web interface.
 

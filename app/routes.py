@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, render_template
-from datetime import timezone, datetime
+from datetime import timezone, datetime,timedelta
 from .extension import get_events_collection
+from pymongo import DESCENDING
 
 main_bp = Blueprint("main",__name__)
 
@@ -89,10 +90,26 @@ def github_webhook_handler():
 
 @main_bp.route("/api/events",methods=["GET"])
 def get_events():
-     """API endpoint for the UI to fetch latest events."""
-     events_collection = get_events_collection()
+    """API endpoint for the UI to fetch latest events (last 15 seconds)."""
+    events_collection = get_events_collection()
     
-    # Fetch events, sorted by timestamp descending, limit to a reasonable number
-     events = list(events_collection.find({}, {'_id': 0}).sort("timestamp", -1).limit(50))
+    # 1. Calculate the time threshold (15 seconds ago) in UTC
+    now_utc = datetime.now(timezone.utc)
+    time_15_seconds_ago = now_utc - timedelta(seconds=15)
     
-     return jsonify(events), 200
+    # 2. Convert to ISO 8601 string with 'Z' suffix for MongoDB query
+    time_threshold_iso = time_15_seconds_ago.isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+    
+    # 3. Query MongoDB for events within the last 15 seconds
+    events_cursor = events_collection.find(
+        {"timestamp": {"$gte": time_threshold_iso}}
+    ).sort("timestamp", DESCENDING).limit(50) 
+    
+    # NEW: Convert ObjectId to string for JSON serialization
+    events_list = []
+    for event in events_cursor:
+        if '_id' in event:
+            event['_id'] = str(event['_id']) # Convert ObjectId to string
+        events_list.append(event)
+    
+    return jsonify(events_list), 200

@@ -1,0 +1,27 @@
+# Remove this line:
+# version: '3.8'
+
+services:
+  webhook_listener:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/
+      MONGO_DB_NAME: webhook_repo
+      MONGO_COLLECTION_NAME: webhook_events
+      GITHUB_WEBHOOK_SECRET: your_strong_random_secret_here
+    depends_on:
+      - mongodb
+    volumes:
+      - .:/app # Or completely remove 'volumes' if not using development mounts
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:

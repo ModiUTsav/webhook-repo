@@ -1,170 +1,123 @@
 <img width="1555" height="989" alt="Image" src="https://github.com/user-attachments/assets/ec250f1c-93f7-4785-823e-0c64b6fbe91d" />
 
-## GitHub Webhook Listener
-This repository provides a Flask application that acts as a listener for GitHub webhook events. It is designed to receive, process, and store push and pull_request events from a designated GitHub repository into a MongoDB database, and display them via a simple web interface.
+# GitHub Webhook Listener
 
+This repository provides a Flask application that acts as a listener for GitHub webhook events. It's designed to receive, process, and store push and pull request events from a designated GitHub repository into a MongoDB database, and display them via a simple web interface. The application is containerized using Docker and Docker Compose for easy setup and deployment.
 
+## Features ✨
 
-## Features
-GitHub Webhook Reception: Listens for push and pull_request events from GitHub.
+* **GitHub Webhook Reception**: Listens for `push` and `pull_request` events from GitHub.
+* **Event Parsing**: Extracts key information such as event type, author, branches involved, request ID, and timestamp.
+* **MongoDB Storage**: Persists processed events into a MongoDB collection.
+* **Web Interface (UI)**: Provides a simple frontend to visualize the stored webhook events.
+* **Real-time Display**: The UI's API endpoint (`/api/events`) now fetches and displays only the **latest 15 seconds** of GitHub event data, providing a near real-time view.
+* **API Endpoint**: Offers a `/api/events` endpoint for the UI to fetch latest events in JSON format.
+* **Dockerized**: The entire application (Flask app + MongoDB) is containerized using Docker and Docker Compose for easy setup and consistent environments.
 
-Event Parsing: Extracts key information such as event type, author, branches involved, request ID, and timestamp.
+## Technologies Used 🛠️
 
-MongoDB Storage: Persists processed events into a MongoDB collection.
+* **Python 3.9+**
+* **Flask**: Web framework
+* **PyMongo**: MongoDB driver for Python
+* **MongoDB**: Database for storing events
+* **Docker & Docker Compose**: For containerization and orchestration
+* **Ngrok**: (Optional, for local development) To expose your local server to the internet for GitHub webhooks.
 
-Web Interface: Provides a simple frontend to visualize the stored webhook events.
+## Setup and Running the Application 🚀
 
-API Endpoint: Offers a /api/events endpoint to fetch events in JSON format.
+### Prerequisites
 
-Robust Timestamp Handling: Converts all incoming timestamps to UTC for consistent storage.
+* **Docker Desktop**: Make sure Docker Desktop is installed and running on your system.
+* **Git**: For cloning the repository.
+* **Ngrok (Optional for local testing)**: Download from [ngrok.com](https://ngrok.com/).
 
-## Technologies Used
-Python 3.x
+### 1. Clone the Repository
 
-Flask: Web framework for the application.
-
-PyMongo: Python driver for MongoDB.
-
-MongoDB: NoSQL database for storing event data.
-
-python-dotenv: For managing environment variables (e.g., MongoDB URI).
-
-ngrok: To expose the local Flask server to the internet for GitHub webhooks.
-
-## setup Instrction
-
-Prerequisites:
-
-Before you begin, ensure you have the following installed:
-
-Python 3.7+: python.org
-
-Git: git-scm.com
-
-MongoDB Community Server: mongodb.com/try/download/community
-
-ngrok: ngrok.com/download 
-
-## Clone the Repository
-
-First, clone this repository to your local machine:
-```
-git clone https://github.com/ModiUTsav/webhook_repo.git
+```bash
+git clone https://github.com/ModiUTsav/webhook-repo.git
 cd webhook_repo
 ```
-## Virtual Environment Setup
-It's highly recommended to use a virtual environment to manage dependencies:
-```
-python -m venv venv
-```
-On Windows (Command Prompt):
+2. Configure Environment Variables
+Create a file named .env in the root of your project directory (where docker-compose.yml is located).
 
+# .env
 ```
+MONGO_URI=mongodb://mongodb:27017/
+MONGO_DB_NAME=webhook_repo
+MONGO_COLLECTION_NAME=webhook_events
 
-venv\Scripts\activate.bat
+# GITHUB_WEBHOOK_SECRET=your_strong_random_secret_here # Uncomment and set this if you implement signature verification
 ```
+Note: The GITHUB_WEBHOOK_SECRET is commented out as the signature verification decorator was removed for this iteration. If you decide to add it back for security, remember to uncomment and set this.
 
-## Install Dependencies
-Once your virtual environment is active, install the required Python packages:
+3. Build and Run with Docker Compose
+This command will build your Flask application image, pull the MongoDB image, and start both services.
+
+Bash
 ```
-pip install -r requirements.txt
-# If requirements.txt is not present, you can manually install:
-# pip install Flask pymongo python-dotenv
-```
+docker-compose up --build -d
+--build: Ensures your Flask app's Docker image is rebuilt (important if you change code or requirements.txt).
 
-MongoDB Setup
-Ensure your MongoDB server is running. By default, the application expects MongoDB to be accessible at mongodb://localhost:27017/.
-
-The application will connect to a database named webhook_repo and store events in a collection named webhook_events. These will be created automatically if they don't exist.
-
-## ngrok Setup
-Download and Install: If you haven't already, download ngrok and follow their installation instructions.
-
-Connect your Authtoken: After signing up on ngrok.com, you'll get an authtoken. Connect it to your ngrok client:
-
-```
-BASH
-
-```
-```
-ngrok authtoken YOUR_AUTH_TOKEN
+-d: Runs the containers in detached mode (in the background).
 ```
 
-## GitHub Webhook Configuration
-You need to configure a webhook in your GitHub repository (e.g., your action_repo) to send events to your local Flask application via ngrok.
-
-Go to your GitHub repository (e.g., ModiUTsav/action_repo).
-
-Navigate to Settings > Webhooks.
-
-Click Add webhook.
-
-Configure the webhook with the following details:
-
-Payload URL: This will be your ngrok forwarding URL followed by /webhook/receiver.
-
-Important: You will get this URL after you start ngrok (see Running the Application below). It will look something like https://abcdefg.ngrok-free.app/webhook/receiver.
-
-Content type: Select application/json.
-
-Secret: Leave this blank for now (your current Flask app doesn't validate it, but for production, this is crucial for security).
-
-Which events would you like to trigger this webhook?: Select "Let me select individual events" and then choose:
-
-Pushes
-
-Pull requests
-
-Active: Ensure this checkbox is ticked.
-
-Click "Add webhook".
-
-## Running the Application
-
-You'll need three separate terminal windows: one for MongoDB, one for your Flask app, and one for ngrok.
-
-Start MongoDB:
-Ensure your MongoDB server is running. (e.g., mongod command, or via MongoDB Compass/service).
-
-Start Flask Application:
-Open a new terminal, activate your virtual environment, and run the Flask app:
-
+4. Verify Containers Are Running
+Bash
 ```
-cd /path/to/your/webhook_repo
-# Activate virtual environment (if not already active)
-# source venv/bin/activate (Linux/macOS)
-# venv\Scripts\activate.bat (Windows)
-python run.py
-```
-Your Flask app will start on http://127.0.0.1:5000. You should see output like:
-```
-MongoDB connected to DB: webhook_repo, Collection: webhook_events
- * Debugger is active!
- * Debugger PIN: ...
- * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+docker-compose ps
+You should see both webhook_listener and mongodb containers in a running state.
 ```
 
-## Start ngrok Tunnel:
-Open another new terminal and run ngrok to expose your Flask app:
-```
+5. Expose Your Local Server to GitHub (for Webhooks)
+GitHub needs a publicly accessible URL to send webhooks.
+
+Start Ngrok (in a new terminal window):
+
+Bash
+
 ngrok http 5000
+This will give you a public https URL (e.g., https://xxxxxx.ngrok-free.app).
+
+Configure GitHub Webhook:
+
+Go to your GitHub repository's Settings > Webhooks.
+
+Click "Add webhook" or edit your existing one.
+
+Set "Payload URL" to the Ngrok https URL followed by /webhook/receiver (e.g., https://xxxxxx.ngrok-free.app/webhook/receiver).
+
+Set "Content type" to application/json.
+
+Leave the "Secret" field empty (since webhook signature verification is not implemented in this version).
+
+Choose "Just the push event." and "Pull requests" or "Send me everything." as needed.
+
+Click "Add webhook" or "Update webhook".
+
+6. Access the Web UI
+Open your web browser and go to:
 ```
-Ngrok will provide a public URL (e.g., https://abcdefg.ngrok-free.app). Copy this HTTPS URL. This is what you'll use for the GitHub webhook payload URL.
+http://localhost:5000/
+```
+You should see your Flask application's UI, which will display the latest 15 seconds of GitHub events as they are received.
 
-Remember to update the GitHub webhook Payload URL with the new ngrok URL if it changes (ngrok free tier URLs change every time you restart ngrok).
+Usage 💡
+Once the application is running and the GitHub webhook is configured:
 
+Perform actions in your GitHub repository (e.g., push new commits, open/close pull requests).
 
-Usage
-Trigger a Push Event: Make a commit and push it to the main branch of your action_repo on GitHub.
+Observe the events appearing dynamically on your http://localhost:5000/ web UI. Events will automatically disappear after 15 seconds.
 
-Trigger a Pull Request Event: Create a new branch, make changes, push the branch, and then open a pull request on GitHub from that branch to main. To test a MERGE event, merge the pull request on GitHub.
+You can also manually check the API endpoint at ```http://localhost:5000/api/events``` to see the raw JSON data.
 
-Viewing Events
-Web Interface: Open your web browser and go to your ngrok URL (e.g., https://abcdefg.ngrok-free.app/). This will display the latest events.
+Stopping the Application
+To stop and remove the running Docker containers:
 
-API Endpoint: Access the raw JSON data by going to your_ngrok_url/api/events.
-
-MongoDB Compass/Shell: Connect to your MongoDB instance and inspect the webhook_repo.webhook_events collection.
+Bash
+```
+docker-compose down
+This will stop and remove the webhook_listener and mongodb containers, but it will preserve the mongo_data volume by default, so your MongoDB data persists.
+```
 
 Event Data Stored
 For push events, the following data is stored:
